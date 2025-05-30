@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>語音辨識診斷工具</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f9f9f9; }
+        .result { margin: 10px 0; padding: 10px; background: #fff; border-left: 5px solid #999; }
+        .pass { border-color: green; }
+        .fail { border-color: red; }
+    </style>
+</head>
+<body>
+<h1>語音辨識診斷工具</h1>
+<div id="results"></div>
+<button id="startTest">開始診斷</button>
+
+<script>
+    const results = document.getElementById('results');
+
+    function logResult(message, success) {
+      const div = document.createElement('div');
+      div.className = 'result ' + (success ? 'pass' : 'fail');
+      div.textContent = (success ? '✅ ' : '❌ ') + message;
+      results.appendChild(div);
+    }
+
+    document.getElementById('startTest').addEventListener('click', async () => {
+      results.innerHTML = '';
+
+      // 1. 檢查 getUserMedia 支援
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        logResult('支援 getUserMedia()', true);
+      } else {
+        logResult('不支援 getUserMedia()', false);
+      }
+
+      // 2. 測試麥克風權限
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        logResult('麥克風權限可用', true);
+      } catch (err) {
+        logResult('無法使用麥克風權限: ' + err.message, false);
+      }
+
+      // 3. 測試 SpeechRecognition
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        logResult('支援 SpeechRecognition', true);
+        const recognizer = new SpeechRecognition();
+        recognizer.lang = 'zh-TW'; // 可以根據需要調整語言
+        recognizer.onstart = () => logResult('語音辨識成功啟動', true);
+        recognizer.onerror = (e) => logResult('語音辨識錯誤: ' + e.error, false);
+        recognizer.onresult = (e) => logResult('語音辨識結果: ' + e.results[0][0].transcript, true);
+        recognizer.start();
+        setTimeout(() => recognizer.stop(), 5000); // 自動停止
+      } else {
+        logResult('不支援 SpeechRecognition', false);
+      }
+    });
+</script>
+</body>
+</html>
