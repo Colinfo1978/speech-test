@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <title>Glorious Voice Translator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #d0f0c0 0%, #6fbf73 100%);
+            color: #333;
+            text-align: center;
+        }
+        select, button {
+            font-size: 1rem;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+        }
+        button {
+            background: linear-gradient(90deg, #00c6ff, #0072ff);
+            color: white;
+            transition: 0.3s;
+        }
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        #resultA, #resultB, #translatedA, #translatedB {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            min-height: 40px;
+        }
+
+        #status {
+            font-weight: bold;
+            color: darkgreen;
+            background-color: #fef6d8;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            justify-content: center;
+        }
+
+        .msg-box {
+            flex: 1;
+            height: 150px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            box-sizing: border-box;
+            margin: 5px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .msg-box div {
+            flex: 1;
+            overflow-y: auto;
+            text-align: center;
+            padding: 5px;
+            word-wrap: break-word;
+        }
+
+        figcaption {
+            font-weight: bold;
+            margin-bottom: 1px;
+        }
+
+        .rotate180 {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body onload="appInit()">
+
+<h1>Glorious Voice Translator</h1>
+
+<div class="UserA rotate180">
+    <h2>User A</h2>
+    <label for="langA">User A 語系：</label>
+    <select id="langA">
+        <option value="zh-TW">中文</option>
+        <option value="en-US">English</option>
+        <option value="ja-JP">日本語</option>
+        <option value="fr-FR">Français</option>
+    </select>
+    <button id="btnA" onclick="startRecognition('A')">User A 開始說話</button>
+    <div class="row">
+        <figure class="msg-box">
+            <figcaption>語音辨識</figcaption>
+            <div id="resultA"></div>
+        </figure>
+        <figure class="msg-box">
+            <figcaption>翻譯結果</figcaption>
+            <div id="translatedB"></div>
+        </figure>
+    </div>
+</div>
+
+<div>
+    <figure class="msg-box">
+        <label>目前狀態:</label>
+        <div id="status">🚀 Gloriouslink Voice Translator</div>
+    </figure>
+</div>
+
+<div>
+    <h2>User B</h2>
+    <label for="langB">User B 語系：</label>
+    <select id="langB">
+        <option value="zh-TW">中文</option>
+        <option value="en-US">English</option>
+        <option value="ja-JP">日本語</option>
+        <option value="fr-FR">Français</option>
+    </select>
+    <button id="btnB" onclick="startRecognition('B')">User B 開始說話</button>
+    <div class="row">
+        <figure class="msg-box">
+            <figcaption>語音辨識</figcaption>
+            <div id="resultB"></div>
+        </figure>
+        <figure class="msg-box">
+            <figcaption>翻譯結果</figcaption>
+            <div id="translatedA"></div>
+        </figure>
+    </div>
+</div>
+
+<script>
+
+    let counter = 0;
+
+    let recognition;
+    let stream; // 存放 MediaStream
+    let timeoutTimer; // 記錄超時計時器
+    const MAX_DURATION = 10000; // 10秒超時
+
+    // 紀錄狀態訊息
+    function showStatus(message) {
+        //document.getElementById("status").innerText = message;
+        const statusEl = document.getElementById("status");
+        const newMsg = `<div>${message}</div>`;
+        statusEl.innerHTML = newMsg + statusEl.innerHTML;
+    }
+
+    function appInit() {
+        showStatus("🚀 應用程式已啟動.");
+        //checkMicrophonePermission();
+    }
+
+    // 停止並釋放麥克風資源
+    function stopStream() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+            showStatus("🎤 麥克風已釋放");
+        }
+    }
+
+    function checkMicrophonePermission() {
+
+      counter++;
+      console.log(`🔢 checkMicrophonePermission 第 ${counter} 次執行`);
+      console.trace("📍 呼叫來源");
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("❌ 瀏覽器不支援 getUserMedia！");
+      return;
+      }
+
+
+        try {
+          console.log("✅ 呼叫 getUserMedia 中...");
+
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function(stream) {
+               console.log("✅ 成功取得麥克風權限！");
+               showStatus("🎤 麥克風權限已授權！");
+               stream.getTracks().forEach(track => track.stop());
+            })
+            .catch(function(err) {
+               console.log("❌ 無法取得麥克風權限：", err);
+               showStatus("❌ 麥克風權限被拒絕！" + err);
+               //alert('錯誤: ' + err);
+            });
+        } catch (e) {
+          console.error("🚫 呼叫 getUserMedia 時發生錯誤：", e);
+          alert("🚫 呼叫 getUserMedia 時發生錯誤：" + e);
+          }
+
+            /*
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    showStatus("🎤 麥克風權限已授權！");
+                    stream.getTracks().forEach(track => track.stop());
+                })
+                .catch(function(err) {
+                    showStatus("❌ 麥克風權限被拒絕！");
+                    //alert("需要麥克風權限才能使用語音辨識功能！");
+                    alert('錯誤:', err);
+                });
+
+            */
+    }
+
+    function startRecognition(user) {
+        if (!('webkitSpeechRecognition' in window)) {
+            //alert("你的瀏覽器不支援 Web Speech API");
+            showStatus("⚠️目前使用的瀏覽器不支援語音辨識！");
+            return;
+        }
+
+        // 每次按下按鈕 先把之前占用的資源釋放出來
+        if (recognition) {
+            try {
+                recognition.abort();
+                showStatus("✅ 釋放語音辨識資源。");
+            } catch(e) {
+                //console.warn("abort() 失敗", e);
+                showStatus("🚫 無法釋放語音辨識資源:" + e);
+            }
+            recognition = null;
+            showStatus("✅ recognition 為 null。");
+        }
+
+        //stopStream();
+
+        //checkMicrophonePermission();
+
+        const langA = document.getElementById('langA').value;
+        const langB = document.getElementById('langB').value;
+
+        const btn = document.getElementById(user === 'A' ? 'btnA' : 'btnB');
+        const result = document.getElementById(user === 'A' ? 'resultA' : 'resultB');
+
+        const userLang = user === 'A' ? langA : langB;
+        const targetLang = user === 'A' ? langB : langA;
+
+        recognition = new webkitSpeechRecognition();
+        recognition.lang = userLang;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        btn.disabled = true;
+        btn.innerText = "🎙️ 辨識中...";
+
+        // 啟動超時計時器
+        clearTimeout(timeoutTimer);
+        showStatus(`⏳ 計時器啟動。`)
+
+        /*
+        timeoutTimer = setTimeout(() => {
+            //console.warn("辨識超時，自動停止。");
+            //showStatus(`辨識超時，自動停止。`)
+            recognition.abort();
+            //alert("辨識超時，請再試一次！");
+            showStatus(`🚫 辨識超時，請再試一次！`);
+            //resetButton(btn, user);
+        }, MAX_DURATION);
+        */
+
+        showStatus(`🎙️ User ${user} 開始語音辨識 (${userLang})...`);
+
+        recognition.onspeechstart = function(event) {
+          showStatus(`✅ User ${user} 開始接受語音:` + event);
+        };
+
+        recognition.onspeechend = function(event) {
+          showStatus(`✅ User ${user} 結束接受語音:` + event);
+        };
+
+        recognition.onnomatch = function(event) {
+          showStatus(`✅ User ${user} 沒有相應的語音` + event);
+        };
+
+        recognition.onresult = function(event) {
+            clearTimeout(timeoutTimer); // 成功後清除超時
+            const transcript = event.results[0][0].transcript;
+            result.innerHTML = `<div>${transcript}</div>` + result.innerHTML;
+            showStatus(`✅ User ${user} 語音辨識完成，準備翻譯...`);
+
+            if (window.Android && window.Android.translate) {
+                const fromLang = userLang.substring(0, 2);
+                const toLang = targetLang.substring(0, 2);
+                window.Android.translate(transcript, fromLang, toLang);
+            }
+        };
+
+        recognition.onerror = function(event) {
+            clearTimeout(timeoutTimer); // 辨識錯誤後清除超時
+            //alert("辨識錯誤: " + event.error);
+            showStatus(`❌ User ${user} 辨識錯誤: ${event.error}`);
+            btn.disabled = false;
+            btn.innerText = user === 'A' ? "User A 開始說話" : "User B 開始說話";
+        };
+
+        recognition.onend = function() {
+            clearTimeout(timeoutTimer); // 結束後清除超時
+            btn.disabled = false;
+            btn.innerText = user === 'A' ? "User A 開始說話" : "User B 開始說話";
+            showStatus(`🛑 User ${user} 辨識結束。`);
+        };
+
+        //recognition.start();
+
+        try {
+              recognition.start();
+              //console.log("🎙️ SpeechRecognition 已啟動！");
+              showStatus(`🎙️ User ${user} SpeechRecognition 已啟動。`);
+            } catch (e) {
+              //console.error("🚫 SpeechRecognition.start() 例外發生:", e);
+              //alert("🚫 啟動語音辨識時發生例外：" + e.message);
+              showStatus(`🚫 User ${user} 啟動語音辨識時發生例外：` + e.message);
+            }
+
+    }
+
+    function showTranslatedText(originalText, translatedText, targetLang) {
+        const target = targetLang.toLowerCase();
+        if (target === document.getElementById('langA').value.substring(0,2)) {
+            translatedB.innerHTML = `<div>${translatedText}</div>` + translatedB.innerHTML;
+            showStatus(`🌍 翻譯完成 (User B ➔ User A): ${translatedText}`);
+        } else if (target === document.getElementById('langB').value.substring(0,2)) {
+            translatedA.innerHTML = `<div>${translatedText}</div>` + translatedA.innerHTML;
+            showStatus(`🌍 翻譯完成 (User A ➔ User B): ${translatedText}`);
+        }
+    }
+</script>
+
+</body>
+</html>
