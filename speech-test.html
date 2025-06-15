@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>語音轉文字測試</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; }
+    #result { margin-top: 20px; font-size: 18px; color: green; }
+    select { font-size: 16px; margin-left: 10px; }
+  </style>
+</head>
+<body>
+  <h2>🎤 語音轉文字測試</h2>
+  <label>選擇語言：
+    <select id="lang">
+      <option value="zh-TW">中文（台灣）</option>
+      <option value="en-US">English（US）</option>
+    </select>
+  </label>
+  <br/><br/>
+  <button id="startBtn">開始辨識</button>
+  <div id="result">請點上方按鈕開始說話...</div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const resultDiv = document.getElementById('result');
+    const langSelect = document.getElementById('lang');
+
+    let recognition;
+    if (!('webkitSpeechRecognition' in window)) {
+      resultDiv.innerText = "❌ 你的瀏覽器不支援語音辨識 Web Speech API";
+    } else {
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;  // 一句話結束就停
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        resultDiv.innerText = "🎙️ 開始說話...";
+        startBtn.disabled = true;
+      };
+
+      recognition.onerror = (event) => {
+        resultDiv.innerText = "⚠️ 錯誤：" + event.error;
+        startBtn.disabled = false;
+      };
+
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        resultDiv.innerText = "✅ 辨識結果：" + text;
+        startBtn.disabled = false;
+      };
+
+      recognition.onend = () => {
+        startBtn.disabled = false;
+      };
+
+      startBtn.onclick = () => {
+        recognition.lang = langSelect.value;
+        recognition.start();
+      };
+    }
+  </script>
+</body>
+</html>
